@@ -4,6 +4,7 @@ from QuantConnect.Indicators import *
 import math, numpy as np
 
 class CustomIndicatorAlgorithm(QCAlgorithm):
+
     def Initialize(self):
         self.SetStartDate(2024,2,29)
         self.SetEndDate(2024,3,5)
@@ -22,12 +23,11 @@ class CustomIndicatorAlgorithm(QCAlgorithm):
         self.AddRiskManagement(NullRiskManagementModel())
         self.SetExecution(ImmediateExecutionModel()) 
 
-
 class MyAlphaModel(AlphaModel):
-    symbol_data_by_symbol = {}
 
+    symbol_data_by_symbol = {}
     def __init__(self):
-        pass
+        self.previous_insight_direction = 0
 
     def Update(self, algorithm, data):
         if algorithm.IsWarmingUp:
@@ -36,24 +36,26 @@ class MyAlphaModel(AlphaModel):
             
         insights = []
         for symbol, symbolData in self.symbol_data_by_symbol.items():
-            # if symbolData.alma.IsReady and symbolData.gma.IsReady: 
-            # algorithm.Log("a: "+str(symbolData.alma.Current.Value))
             algorithm.Log("ag," + str(algorithm.Time)+ "," +str(symbolData.alma.Value) + "," +str(symbolData.gma.Value))
-            # algorithm.Log("g: "+str(symbolData.gma.Value))
-            # algorithm.Log("Insight down: "  + str(algorithm.Time)+ "SMA 8 Value: " + str(symbolData.sma_fast) + "SMA 21: " + str(symbolData.sma_slow))
-            if symbolData.alma.Current.Value > symbolData.gma.Value:
-                # algorithm.Log("Insight down: "  + str(algorithm.Time)+ "SMA 8 Value: " + str(symbolData.sma_fast) + "SMA 21: " + str(symbolData.sma_slow))
-                insights.append(Insight.Price(symbolData.symbol, timedelta(365),InsightDirection.Down))
-            elif symbolData.alma.Current.Value < symbolData.gma.Value:
-                # algorithm.Log("Insight up: " + str(algorithm.Time)+ "... SMA 8 Value: " + str(symbolData.sma_fast) + "SMA 21: " + str(symbolData.sma_slow))
-                insights.append(Insight.Price(symbolData.symbol, timedelta(365), InsightDirection.Up))
-
+            if symbolData.alma.Current.Value < symbolData.gma.Value:
+                self.previous_insight_direction = -1 if self.previous_insight_direction == 0 else self.previous_insight_direction
+                # check only for cross under
+                if self.previous_insight_direction != -1:
+                    self.previous_insight_direction = -1
+                    insights.append(Insight.Price(symbolData.symbol, timedelta(365),InsightDirection.Down))
+            elif symbolData.alma.Current.Value > symbolData.gma.Value:
+                self.previous_insight_direction = 1 if self.previous_insight_direction == 0 else self.previous_insight_direction
+                # check only for cross over
+                if self.previous_insight_direction != 1:
+                    self.previous_insight_direction = 1
+                    insights.append(Insight.Price(symbolData.symbol, timedelta(365), InsightDirection.Up))
+        
         return insights
 
     def OnSecuritiesChanged(self, algorithm, changes):
+
         for added in changes.AddedSecurities:
             self.symbol_data_by_symbol[added.Symbol] = SymbolData(added.Symbol, algorithm)
-
         for removed in changes.RemovedSecurities:
             symbol_data = self.symbol_data_by_symbol.pop(removed.Symbol, None)
             if symbol_data:
@@ -61,6 +63,7 @@ class MyAlphaModel(AlphaModel):
         
         
 class SymbolData:
+
     def __init__(self, symbol, algorithm):
         self.symbol = symbol
         self.algorithm = algorithm 
@@ -68,8 +71,7 @@ class SymbolData:
         self.alma_period = 25
         self.offset = 0.85
         self.sigma1 = 7 
-        self.gma_period = 15
-
+        self.gma_period = 14
         self.volatility_period = 20
 
         # TODO: Change to percentage difference: Done 
@@ -91,8 +93,8 @@ class SymbolData:
         self.algorithm.SubscriptionManager.RemoveConsolidator(self.symbol, self.consolidator)
 
 class GMAIndicator(PythonIndicator):
-    # The GMA indicator with percentage change of close as the input
 
+    # The GMA indicator with percentage change of close as the input
     def __init__(self, algorithm, period=14):
         self.period = period
         self.queue = deque(maxlen=period)
@@ -114,16 +116,23 @@ class GMAIndicator(PythonIndicator):
         if std.IsReady:
             sigma = std.Current.Value
             for i in (0,count-1):
+                # weight = math.exp(-math.pow(((i - (length - 1)) / (2 * sigma)), 2) / 2)
                 weight = np.exp(-np.power(((i - (length - 1)) / (2 * sigma)), 2) / 2)
+                # value = ta.highest(avpchange, i + 1) + ta.lowest(avpchange, i + 1)
                 value = np.max(self.window[-i:]) + np.min(self.window[-i:])
+                #  gma := gma + (value * weight)
                 gma_last += (value * weight)
+                # sumOfWeights := sumOfWeights + weight
                 sum_of_weights += weight
             
-            gma_last = float((gma_last/sum_of_weights)/2)
+            # gma := (gma / sumOfWeights) / 2
+            gma_last = float(gma_last/sum_of_weights)/2
             self.gmaq.append(gma_last)
             self.gma = np.array(self.gmaq)
             
+            # gma:= ta.ema(gma, 7)
             if len(self.gma)==7:
+                self.algorithm.Log("gma: "+ str(self.gma))
                 for gma_elem in self.gma:
                     self.gma_ema.Update(time_index, gma_elem)
                 if self.gma_ema.IsReady:
@@ -132,8 +141,12 @@ class GMAIndicator(PythonIndicator):
         return self.gma_ema
 
 class ALMAIndicator(PythonIndicator):
+    
     # The alma indicator with percentage change of close as the input
-    def __init__(self, algorithm, period, sigma, offset):
+    def __init__(self, algorithm, period=25, sigma=7, offset=0.85):
+        # length1 = 25
+        # offset = 0.85
+        # sigma1 = 7
         self.period = period
         self.sigma = sigma
         self.offset = offset
@@ -144,12 +157,16 @@ class ALMAIndicator(PythonIndicator):
         self.Value = 0
     
     def Update(self, time_index, close_price) -> bool:
+        # appending the right side of the queue the incoming close price after consolidation
         self.queue.append(close_price) 
         self.window = np.array(self.queue)
         # this is the formula to calculate percentage diff
          # pchange = ta.change(src, 1) / src * 100
         self.prctdiff = np.divide(np.diff(self.window), self.window[1:])*100
-           
+        # self.algorithm.Log(str(np.diff(self.window)))
+        # self.algorithm.Log(str(self.window[-self.period:]))
+        self.algorithm.Log(str(self.prctdiff))
+
         if len(self.window) == self.period+1:
             for prct_elem in self.prctdiff:
                     self.alma.Update(time_index, prct_elem)

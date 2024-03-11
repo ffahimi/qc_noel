@@ -11,6 +11,7 @@ class CustomIndicatorAlgorithm(QCAlgorithm):
         # the warm up period needed (25+1 as we use the percentage difference in our indicators which requires one more element
         self.asgma_period = 26
         self.SetWarmup(self.asgma_period)
+        self.AddData(MyCustomData, "SPYTV", Resolution.Minute)
         self.tickers = ["SPY"]
         symbols = [ Symbol.Create(ticker, SecurityType.Equity, Market.USA) for ticker in self.tickers]
         self.SetUniverseSelection(ManualUniverseSelectionModel(symbols) )
@@ -22,6 +23,22 @@ class CustomIndicatorAlgorithm(QCAlgorithm):
         self.AddRiskManagement(NullRiskManagementModel())
         self.SetExecution(ImmediateExecutionModel()) 
 
+class MyCustomData(BaseData):
+    def __init__(self):
+        self.Value = 0
+    
+    def Reader(self, config, line, date, isLive):
+        if not (line.strip() and line[0].isdigit()): return None
+        data = line.split(',')
+        customData = MyCustomData()
+        customData.Symbol = config.Symbol
+        customData.Time = datetime.strptime(data[0], "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
+        customData.Value = float(data[1])
+        return customData
+
+    def GetSource(self, config, date, isLive):
+        source = f"./tvspy.csv"
+        return SubscriptionDataSource(source, SubscriptionTransportMedium.LocalFile)
 
 class MyAlphaModel(AlphaModel):
     symbol_data_by_symbol = {}
