@@ -2,14 +2,20 @@ from AlgorithmImports import *
 from collections import deque
 from QuantConnect.Indicators import *
 import math, numpy as np
+import pandas
+from io import StringIO
 
 class CustomIndicatorAlgorithm(QCAlgorithm):
 
     def Initialize(self):
-        self.SetStartDate(2024,2,27)
-        self.SetEndDate(2024,2,28)
+        self.SetStartDate(2024,3,7)
+        # self.SetEndDate(2024,2,11)
 
-        self.asgma_period = 40
+        url = 'https://qcfiles.s3.eu-north-1.amazonaws.com/SPY+RTH+ADJ+UTC-5+1m-tc.csv'
+        self.file = self.Download(url)
+        self.tickers_df = pandas.read_csv(StringIO(self.file))
+
+        self.asgma_period = 26
         # the warm up period needed (25+1 as we use the percentage difference in our indicators which requires one more element
         # warm up updated/increased to 35 = channel_length + signal_length + average_length for the wavetrend indicator 
         # TODO: make warm up a variable
@@ -18,21 +24,21 @@ class CustomIndicatorAlgorithm(QCAlgorithm):
         self.tickers = ["SPY"]
         symbols = [ Symbol.Create(ticker, SecurityType.Equity, Market.USA) for ticker in self.tickers]
         self.SetUniverseSelection(ManualUniverseSelectionModel(symbols) )
-        self.AddAlpha(MyAlphaModel())
+        self.AddAlpha(MyAlphaModel(self.tickers_df))
         self.UniverseSettings.Resolution = Resolution.Minute
         self.Settings.RebalancePortfolioOnInsightChanges = True
         self.Settings.RebalancePortfolioOnSecurityChanges = True        
         self.SetPortfolioConstruction(EqualWeightingPortfolioConstructionModel(lambda time: None))
         self.AddRiskManagement(NullRiskManagementModel())
         self.SetExecution(ImmediateExecutionModel()) 
-        # self.file = self.Download(url)
-        self.tickers_df = pandas.read_csv(StringIO(self.file))
         
+
 class MyAlphaModel(AlphaModel):
 
     symbol_data_by_symbol = {}
-    def __init__(self):
+    def __init__(self, external_data):
         self.previous_insight_direction = 0
+        self.external_data = external_data
 
     def Update(self, algorithm, data):
         if algorithm.IsWarmingUp:
@@ -40,8 +46,11 @@ class MyAlphaModel(AlphaModel):
                 pass
             
         insights = []
+        # self.RecordTest(algorithm)
         for symbol, symbolData in self.symbol_data_by_symbol.items():
-            algorithm.Log("agap2," + str(algorithm.Time)+ "," + str(symbolData.current_close) + "," + str(symbolData.wt.Value) + "," + str(symbolData.wt.wt2.Current.Value) + ","+str(symbolData.alma.Value) + "," +str(symbolData.gma.Value) + "," + str(symbolData.alma2.Current.Value) + "," + str(symbolData.alma.current_prctdiff))
+            algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.wt.current_hlc3) + ","  + str(symbolData.wt.Value) + ","  + str(symbolData.wt.esa.Current.Value)+ ","  + str(symbolData.wt.d.Current.Value))
+            # algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.wt.current_hlc3) + "," +str(symbolData.alma.current_prctdiff) + "," +str(symbolData.gma.Value) + "," + str(symbolData.alma.Value) + "," + str(symbolData.wt.Value*100) + "," + str(symbolData.wt.d.Current.Value) +  "," + str(symbolData.wt.esa.Current.Value))
+            # algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.current_close) + "," + str(symbolData.wt.current_hlc3) + "," +str(symbolData.alma.current_prctdiff) + "," +str(symbolData.gma.Value) + ","  + str(symbolData.alma2.Current.Value) + "," + str(symbolData.alma.Value) + "," + str(symbolData.wt.Value))
             # algorithm.Log("agap2," + str(algorithm.Time)+ "," + str(symbolData.current_close) + "," +str(symbolData.alma.Value) + "," +str(symbolData.gma.Value) + "," + str(symbolData.alma2.Current.Value) + "," + str(symbolData.alma.current_prctdiff))
            
             # if symbolData.alma.Current.Value < symbolData.gma.Value:
@@ -56,8 +65,27 @@ class MyAlphaModel(AlphaModel):
             #     if self.previous_insight_direction != 1:
             #         self.previous_insight_direction = 1
             #         insights.append(Insight.Price(symbolData.symbol, timedelta(365), InsightDirection.Up))
-        
         return insights
+
+    def RecordTest(self, algorithm):
+            # Code snippet to check the file against TV file 
+            tview_df = self.external_data
+            tview_df['time'] = pandas.to_datetime(tview_df['time'], infer_datetime_format=True)
+
+            for symbol, symbolData in self.symbol_data_by_symbol.items():
+                matching_df_row = tview_df.loc[tview_df['time'] == symbolData.current_time]
+                # algorithm.Log(str(matching_df_row['time']))
+                
+                backtest_data = pd.DataFrame(columns=['ctime','atime','close_qc','close_tv','close_diff'])
+
+                if not matching_df_row.empty:
+                    # algorithm.Log(str(symbolData.current_time))
+                    d={'ctime': symbolData.current_time, 'atime': algorithm.Time, 'close_qc': symbolData.current_close,'close_tv': matching_df_row.iloc[0]['close'],'close_diff': matching_df_row.iloc[0]['close']- symbolData.current_close} 
+                    backtest_data.loc[len(backtest_data)]=d
+                    # algorithm.Log(str(symbolData.current_time) + "," + str(matching_df_row.iloc[0]['close'])+ "," + str(symbolData.current_close) + "," + str(matching_df_row.iloc[0]['close']- symbolData.current_close))
+
+            algorithm.ObjectStore.Save("testdata.csv",  backtest_data.to_csv())
+        
 
     def OnSecuritiesChanged(self, algorithm, changes):
 
@@ -105,6 +133,7 @@ class SymbolData:
         hlc3 = float(consolidated.Close + consolidated.High + consolidated.Low)/3
         self.wt.Update(consolidated.Time, hlc3)
         self.current_close = consolidated.Close
+        self.current_time = consolidated.Time
 
     def dispose(self):
         self.algorithm.SubscriptionManager.RemoveConsolidator(self.symbol, self.consolidator)
@@ -201,10 +230,11 @@ class WaveTrend(PythonIndicator):
     def __init__(self, algorithm, channel_length=10, average_length=21, signal_length=4):
         self.algorithm = algorithm
         self.esa = ExponentialMovingAverage(channel_length)
-        self.d = ExponentialMovingAverage(channel_length)
+        self.d = StandardDeviation(channel_length)
+        # self.d = ExponentialMovingAverage(channel_length)
         self.tci = ExponentialMovingAverage(average_length)
         self.wt1 = 0
-        self.wt2 = ExponentialMovingAverage(signal_length)
+        self.wt2 = SimpleMovingAverage(signal_length)
         self.Value = 0
         self.current_hlc3 = 0
         
@@ -212,35 +242,23 @@ class WaveTrend(PythonIndicator):
         self.average_length = average_length
         self.signal_length = signal_length
 
-        # // WaveTrend calculation
-        # esa = ta.ema(src, channelLength)
-        # d = ta.ema(math.abs(src - esa), channelLength)
-        # ci = (src - esa) / (0.015 * d)
-        # tci = ta.ema(ci, averageLength)
-        # wt1 = tci
-        # wt2 = ta.sma(wt1, signalLength)
-
-
     def Update(self, time_index, hlc3) -> bool:
+        self.current_hlc3 = hlc3
         self.esa.Update(time_index, hlc3)
-        
+        self.d.Update(time_index, hlc3)
+
         if self.esa.IsReady:
             esa = self.esa.Current.Value
-            # self.algorithm.Log("esa: "+str(esa) + "," + str(hlc3))
-            # d = ta.ema(math.abs(src - esa), channelLength)
-            # self.algorithm.Log(str(np.abs(hlc3-esa)))
-            self.d.Update(time_index, float(np.abs(hlc3-esa)))
-            
-            if self.d.IsReady:    
-                d = self.d.Current.Value
-                # self.algorithm.Log("d:"+str(d))
-                ci = (hlc3 - esa)/(0.015+d)
-                self.tci.Update(time_index, ci)
+
+        if self.d.IsReady:    
+            d = self.d.Current.Value
+            ci = (hlc3 - esa)/(d)*100
+            self.tci.Update(time_index, ci)
                 
-                if self.tci.IsReady:
-                    tci = self.tci.Current.Value
-                    self.wt1 = tci
-                    self.wt2.Update(time_index, float(self.wt1))
+            if self.tci.IsReady:
+                tci = self.tci.Current.Value
+                self.wt1 = tci
+                self.wt2.Update(time_index, float(self.wt1))
         
         self.Value = self.wt1
 

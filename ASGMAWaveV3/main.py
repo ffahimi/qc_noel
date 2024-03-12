@@ -8,8 +8,8 @@ from io import StringIO
 class CustomIndicatorAlgorithm(QCAlgorithm):
 
     def Initialize(self):
-        self.SetStartDate(2024,2,29)
-        self.SetEndDate(2024,3,1)
+        self.SetStartDate(2024,3,7)
+        # self.SetEndDate(2024,2,11)
 
         url = 'https://qcfiles.s3.eu-north-1.amazonaws.com/SPY+RTH+ADJ+UTC-5+1m-tc.csv'
         self.file = self.Download(url)
@@ -46,8 +46,10 @@ class MyAlphaModel(AlphaModel):
                 pass
             
         insights = []
-        self.RecordTest(algorithm)
-        # for symbol, symbolData in self.symbol_data_by_symbol.items():
+        # self.RecordTest(algorithm)
+        for symbol, symbolData in self.symbol_data_by_symbol.items():
+            algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.wt.current_hlc3) + ","  + str(symbolData.wt.Value) + ","  + str(symbolData.wt.esa.Current.Value)+ ","  + str(symbolData.wt.d.Current.Value))
+            # algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.wt.current_hlc3) + "," +str(symbolData.alma.current_prctdiff) + "," +str(symbolData.gma.Value) + "," + str(symbolData.alma.Value) + "," + str(symbolData.wt.Value*100) + "," + str(symbolData.wt.d.Current.Value) +  "," + str(symbolData.wt.esa.Current.Value))
             # algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.current_close) + "," + str(symbolData.wt.current_hlc3) + "," +str(symbolData.alma.current_prctdiff) + "," +str(symbolData.gma.Value) + ","  + str(symbolData.alma2.Current.Value) + "," + str(symbolData.alma.Value) + "," + str(symbolData.wt.Value))
             # algorithm.Log("agap2," + str(algorithm.Time)+ "," + str(symbolData.current_close) + "," +str(symbolData.alma.Value) + "," +str(symbolData.gma.Value) + "," + str(symbolData.alma2.Current.Value) + "," + str(symbolData.alma.current_prctdiff))
            
@@ -228,10 +230,11 @@ class WaveTrend(PythonIndicator):
     def __init__(self, algorithm, channel_length=10, average_length=21, signal_length=4):
         self.algorithm = algorithm
         self.esa = ExponentialMovingAverage(channel_length)
-        self.d = ExponentialMovingAverage(channel_length)
+        self.d = StandardDeviation(channel_length)
+        # self.d = ExponentialMovingAverage(channel_length)
         self.tci = ExponentialMovingAverage(average_length)
         self.wt1 = 0
-        self.wt2 = ExponentialMovingAverage(signal_length)
+        self.wt2 = SimpleMovingAverage(signal_length)
         self.Value = 0
         self.current_hlc3 = 0
         
@@ -242,21 +245,20 @@ class WaveTrend(PythonIndicator):
     def Update(self, time_index, hlc3) -> bool:
         self.current_hlc3 = hlc3
         self.esa.Update(time_index, hlc3)
-        
+
         if self.esa.IsReady:
             esa = self.esa.Current.Value
-            self.d.Update(time_index, float(np.abs(hlc3-esa)))
-            
-            if self.d.IsReady:    
-                d = self.d.Current.Value
-                ci = (hlc3 - esa)/(0.015+d)
-                self.tci.Update(time_index, float(ci))
-                
-                if self.tci.IsReady:
-                    tci = self.tci.Current.Value
-                    self.wt1 = tci
-                    self.wt2.Update(time_index, float(self.wt1))
         
-        self.Value = self.wt1
-
-        return self.wt2
+if self.d.IsReady:    
+            if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    if self.d.IsReady:    
+.Value.Value
+                ci = (hlc3 - esa)/(d)*100000000000000000000000000
+                self.tci.Update(time_index, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)x, ci)
+                
+                if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:if self.tci.IsReady:
+                    tci = self.tci.Current.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Valueurrent.Value
+                    self.wt1 = tci
+                    self.wt2.Update(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))e(time_index, float(self.wt1))
+        
+        self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1self.Value = self.wt1
+        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2        return self.wt2
