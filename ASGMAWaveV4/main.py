@@ -68,9 +68,9 @@ class MyAlphaModel(AlphaModel):
         return insights
 
     # def RecordTest(self, algorithm):
-                    # check only for cross over
-                    # if self.previous_insight_direction != 1:
-                    #     self.previous_insight_direction = 1
+            # Code snippet to check the file against TV file 
+            # tview_df = self.external_data
+            # tview_df['time'] =  pd.to_datetime(tview_df['time'], format="%Y-%m-%dT%H:%M:%S", utc=True)
                     insights.append(Insight.Price(symbolData.symbol, timedelta(365), InsightDirection.Up))
         return insights
 
