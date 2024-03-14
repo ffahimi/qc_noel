@@ -71,15 +71,15 @@ class MyAlphaModel(AlphaModel):
             # Code snippet to check the file against TV file 
             # tview_df = self.external_data
             # tview_df['time'] =  pd.to_datetime(tview_df['time'], format="%Y-%m-%dT%H:%M:%S", utc=True)
-                    insights.append(Insight.Price(symbolData.symbol, timedelta(365), InsightDirection.Up))
-        return insights
-
-    # def RecordTest(self, algorithm):
-            # Code snippet to check the file against TV file 
-            # tview_df = self.external_data
-            # tview_df['time'] =  pd.to_datetime(tview_df['time'], format="%Y-%m-%dT%H:%M:%S", utc=True)
             # tview_df.time = tview_df.time.dt.tz_convert('US/Eastern')
             # algorithm.Log(str(tview_df['time'].head()))
+            # for symbol, symbolData in self.symbol_data_by_symbol.items():
+                # matching_df_row = tview_df.loc[tview_df['time'] == symbolData.current_time]  
+                
+                # algorithm.Log(str(symbolData.current_utctime))
+
+            #     backtest_data = pd.DataFrame(columns=['ctime','atime','close_diff','open_diff','high_diff', 'low_diff',])
+
             # for symbol, symbolData in self.symbol_data_by_symbol.items():
                 # matching_df_row = tview_df.loc[tview_df['time'] == symbolData.current_time]  
                 
@@ -271,6 +271,7 @@ class WaveTrend(PythonIndicator):
                 self.wt1 = tci
                 self.wt2.Update(time_index, float(self.wt1))
         
+
         self.Value = self.wt1
 
         return self.wt2

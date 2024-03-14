@@ -8,104 +8,93 @@ from io import StringIO
 class CustomIndicatorAlgorithm(QCAlgorithm):
 
     def Initialize(self):
-        self.SetStartDate(2024,2,12)
-        self.SetEndDate(2024,2,29)
-        self.SetCash(10000000)
+        self.SetStartDate(2024,2,9)
+        # self.SetEndDate(2024,2,14)
+        self.SetCash(100000)
 
-        self.SetTimeZone("Europe/London")
+        # self.SetTimeZone("Europe/London")
         url = 'https://qcfiles.s3.eu-north-1.amazonaws.com/AMEX_SPY_1min.csv'
         self.file = self.Download(url)
         self.tickers_df = pandas.read_csv(StringIO(self.file))
-        
 
         self.asgma_period = 40
         # the warm up period needed (25+1 as we use the percentage difference in our indicators which requires one more element
         # warm up updated/increased to 35 = channel_length + signal_length + average_length for the wavetrend indicator 
         # TODO: make warm up a variable
         # TODO: move warm up to the indicators 
-        self.SetWarmup(self.asgma_period)
+        self.SetWarmup(1)
         self.tickers = ["SPY"]
         symbols = [ Symbol.Create(ticker, SecurityType.Equity, Market.USA) for ticker in self.tickers]
-        self.SetUniverseSelection(ManualUniverseSelectionModel(symbols) )
-        self.AddAlpha(MyAlphaModel(self.tickers_df))
-        self.UniverseSettings.Resolution = Resolution.Minute
         self.Settings.RebalancePortfolioOnInsightChanges = True
         self.Settings.RebalancePortfolioOnSecurityChanges = False
-        self.Settings.FreePortfolioValuePercentage = 0.50
-        self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage, AccountType.Cash)
-        # self.SetPortfolioConstruction(EqualWeightingPortfolioConstructionModel(timedelta(minutes=1), PortfolioBias.LongShort))
-        self.SetPortfolioConstruction(EqualWeightingPortfolioConstructionModel(lambda time: None, PortfolioBias.LongShort))
-        # self.SetPortfolioConstruction(InsightWeightingPortfolioConstructionModel())
-        self.AddRiskManagement(NullRiskManagementModel())
-        self.SetExecution(ImmediateExecutionModel()) 
+        self.SetUniverseSelection(ManualUniverseSelectionModel(symbols) )
+        self.AddAlpha(MyAlphaModel())
+        self.UniverseSettings.Resolution = Resolution.Minute
+        self.SetPortfolioConstruction(InsightWeightingPortfolioConstructionModel(self.RebalanceFunction, PortfolioBias.LongShort))
+        # self.SetPortfolioConstruction(EqualWeightingPortfolioConstructionModel(lambda time: None, PortfolioBias.LongShort))
+        self.SetExecution(ImmediateExecutionModel())
         
+        self.SetRiskManagement(MaximumDrawdownPercentPerSecurity(0.2))
+        
+    def OnOrderEvent(self, orderEvent):
+        order = self.Transactions.GetOrderById(orderEvent.OrderId)
+        self.Debug(f"{self.Time} OrderEvent: {orderEvent}. Current holding for {order.Symbol}: Invested={self.Portfolio[order.Symbol].Invested}, Quantity={self.Portfolio[order.Symbol].Quantity}")
+
+    def RebalanceFunction(self, time):
+        return None
 
 class MyAlphaModel(AlphaModel):
-
-    Name = "AsgmaWtModel"
-
-    symbol_data_by_symbol = {}
-    def __init__(self, external_data):
-        self.previous_insight_direction = InsightDirection.Flat
-        self.current_insight_direction = InsightDirection.Flat
-
-        self.external_data = external_data
+    def __init__(self):
+        
+        self.symbol_directions = {}  # Dictionary to track the current direction for each symbol
+        self.symbol_data_by_symbol = {}
 
     def Update(self, algorithm, data):
+        insights = []
+        weight = 0
         if algorithm.IsWarmingUp:
             for symbol in self.symbol_data_by_symbol:
                 pass
-            
-        insights = []
-
-        # activate testing/comparison from a remote file
-        # self.RecordTest(algorithm)
-
 
         for symbol, symbolData in self.symbol_data_by_symbol.items():
-            if symbolData.wt.Value > 70:
-                if symbolData.alma.Value < symbolData.gma.Value:
-                    self.current_insight_direction = InsightDirection.Down
-            elif  symbolData.wt.Value < -70:
-                if symbolData.alma.Value > symbolData.gma.Value:
-                    self.current_insight_direction = InsightDirection.Up
-            
-            insights.append(Insight.Price(symbolData.symbol, timedelta(minutes=120), self.current_insight_direction))
+            algorithm.Log(f"------------------")
+            algorithm.Log(f"Checking conditions for symbol: {symbol} {symbol.Value}")
+            algorithm.Log(f"Invested={algorithm.Portfolio[symbol].Invested}, Quantity={algorithm.Portfolio[symbol].Quantity}")
 
+            newDirection = None
+            if symbolData.wt.Value < -70 and symbolData.alma.Value >= symbolData.gma.Value:
+                newDirection = InsightDirection.Up
+                weight = (-70 - symbolData.wt.Value)/30
+            elif symbolData.wt.Value > 70 and symbolData.alma.Value < symbolData.gma.Value:
+                newDirection = InsightDirection.Down
+                weight = (symbolData.wt.Value-70)/30
+            if newDirection is not None:
+                # Check if we have an existing position and its direction
+                currentHolding = algorithm.Portfolio[symbol].Invested and algorithm.Portfolio[symbol].IsLong
+                currentDirection = InsightDirection.Up if currentHolding else InsightDirection.Down
+
+                # Determine if the new state is opposite to the current holding direction
+                isNewDirection = (newDirection != currentDirection)
+                isNotInvestedOrOpposite = not algorithm.Portfolio[symbol].Invested or (algorithm.Portfolio[symbol].Invested and isNewDirection)
+
+                if isNotInvestedOrOpposite:
+                    algorithm.Log(f"Insight {newDirection} for {symbol.Value}")
+                    # Generate insight only if not invested or if wanting to trade in opposite direction
+                    insight = Insight.Price(symbol, timedelta(days=1), newDirection, None, None, None, 0.6)
+                    insights.append(insight)
+                    self.symbol_directions[symbol] = newDirection  # Update the direction for this symbol
+                else:
+                    algorithm.Log(f"Not invested or opposite, so not doing anything.")
+        
         return insights
 
-    # def RecordTest(self, algorithm):
-            # Code snippet to check the file against TV file 
-            # tview_df = self.external_data
-            # tview_df['time'] =  pd.to_datetime(tview_df['time'], format="%Y-%m-%dT%H:%M:%S", utc=True)
-            # tview_df.time = tview_df.time.dt.tz_convert('US/Eastern')
-            # algorithm.Log(str(tview_df['time'].head()))
-            # for symbol, symbolData in self.symbol_data_by_symbol.items():
-                # matching_df_row = tview_df.loc[tview_df['time'] == symbolData.current_time]  
-                
-                # algorithm.Log(str(symbolData.current_utctime))
-
-            #     backtest_data = pd.DataFrame(columns=['ctime','atime','close_diff','open_diff','high_diff', 'low_diff',])
-
-                # if not matching_df_row.empty:
-                #     algorithm.Log(matching_df_row)
-                #     algorithm.Log(str(symbolData.current_time))
-                    # d={'ctime': symbolData.current_time, 'atime': algorithm.Time, 'close_diff': matching_df_row.iloc[0]['close']- symbolData.current_close, 'open_diff': matching_df_row.iloc[0]['open']- symbolData.current_open,  'high_diff': matching_df_row.iloc[0]['high']- symbolData.current_high, 'low_diff': matching_df_row.iloc[0]['low']- symbolData.current_low} 
-            #         backtest_data.loc[len(backtest_data)]=d
-            #         algorithm.Log(str(matching_df_row.iloc[0]['close']- symbolData.current_close))
-            #         # algorithm.Log([str(x) for y, x in d.items()])
-            # algorithm.ObjectStore.Save("testdata.csv",  backtest_data.to_csv())
-        
-
     def OnSecuritiesChanged(self, algorithm, changes):
-
         for added in changes.AddedSecurities:
             self.symbol_data_by_symbol[added.Symbol] = SymbolData(added.Symbol, algorithm)
         for removed in changes.RemovedSecurities:
             symbol_data = self.symbol_data_by_symbol.pop(removed.Symbol, None)
             if symbol_data:
                 symbol_data.dispose()
-        
         
 class SymbolData:
 

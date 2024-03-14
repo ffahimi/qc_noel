@@ -1,22 +1,22 @@
-from AlgorithmImports import *
+
 from collections import deque
 from QuantConnect.Indicators import *
 import math, numpy as np
 import pandas
 from io import StringIO
+from AlgorithmImports import *
 
 class CustomIndicatorAlgorithm(QCAlgorithm):
 
     def Initialize(self):
         self.SetStartDate(2024,2,12)
         self.SetEndDate(2024,2,29)
-        self.SetCash(10000000)
+        self.SetCash(10000)
 
         self.SetTimeZone("Europe/London")
         url = 'https://qcfiles.s3.eu-north-1.amazonaws.com/AMEX_SPY_1min.csv'
         self.file = self.Download(url)
         self.tickers_df = pandas.read_csv(StringIO(self.file))
-        
 
         self.asgma_period = 40
         # the warm up period needed (25+1 as we use the percentage difference in our indicators which requires one more element
@@ -30,15 +30,21 @@ class CustomIndicatorAlgorithm(QCAlgorithm):
         self.AddAlpha(MyAlphaModel(self.tickers_df))
         self.UniverseSettings.Resolution = Resolution.Minute
         self.Settings.RebalancePortfolioOnInsightChanges = True
-        self.Settings.RebalancePortfolioOnSecurityChanges = False
-        self.Settings.FreePortfolioValuePercentage = 0.50
-        self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage, AccountType.Cash)
-        # self.SetPortfolioConstruction(EqualWeightingPortfolioConstructionModel(timedelta(minutes=1), PortfolioBias.LongShort))
-        self.SetPortfolioConstruction(EqualWeightingPortfolioConstructionModel(lambda time: None, PortfolioBias.LongShort))
-        # self.SetPortfolioConstruction(InsightWeightingPortfolioConstructionModel())
-        self.AddRiskManagement(NullRiskManagementModel())
-        self.SetExecution(ImmediateExecutionModel()) 
+        self.Settings.RebalancePortfolioOnSecurityChanges = False 
+        self.SetPortfolioConstruction(EqualWeightingPortfolioConstructionModel())
+        self.SetExecution(ImmediateExecutionModel())
+        self.SetRiskManagement(MaximumDrawdownPercentPerSecurity(0.02))
         
+        
+    def OnOrderEvent(self, orderEvent):
+        order = self.Transactions.GetOrderById(orderEvent.OrderId)
+        self.Debug(f"{self.Time} {order.Type}: {orderEvent}")
+        
+# # Portfolio construction scaffolding class; basic method args.
+# class MyPortfolioConstructionModel(PortfolioConstructionModel):
+#     # Create list of PortfolioTarget objects from Insights
+#     def CreateTargets(self, algorithm: QCAlgorithm, insights: List[Insight]) -> List[PortfolioTarget]:
+#         return super().CreateTargets(algorithm, insights)
 
 class MyAlphaModel(AlphaModel):
 
@@ -46,33 +52,85 @@ class MyAlphaModel(AlphaModel):
 
     symbol_data_by_symbol = {}
     def __init__(self, external_data):
-        self.previous_insight_direction = InsightDirection.Flat
-        self.current_insight_direction = InsightDirection.Flat
-
+        self.previous_insight_direction = 0
         self.external_data = external_data
+        self.previousState = None
 
     def Update(self, algorithm, data):
+        insights = []
         if algorithm.IsWarmingUp:
             for symbol in self.symbol_data_by_symbol:
                 pass
-            
-        insights = []
-
+        
         # activate testing/comparison from a remote file
         # self.RecordTest(algorithm)
-
-
+        
         for symbol, symbolData in self.symbol_data_by_symbol.items():
-            if symbolData.wt.Value > 70:
-                if symbolData.alma.Value < symbolData.gma.Value:
-                    self.current_insight_direction = InsightDirection.Down
-            elif  symbolData.wt.Value < -70:
-                if symbolData.alma.Value > symbolData.gma.Value:
-                    self.current_insight_direction = InsightDirection.Up
+
+            if algorithm.Portfolio[symbolData.symbol].Invested:
+                return insights
+
+            currentState = InsightDirection.Flat
+
+            if symbolData.wt.Value < -70:
+                if symbolData.alma.Value >= symbolData.gma.Value:
+                    currentState = InsightDirection.Up
             
-            insights.append(Insight.Price(symbolData.symbol, timedelta(minutes=120), self.current_insight_direction))
+            elif symbolData.wt.Value > 70:
+                if symbolData.alma.Value < symbolData.gma.Value:
+                    currentState = InsightDirection.Down
+
+            if self.previousState is not None and self.previousState != currentState:
+                direction = InsightDirection.Flat
+                if currentState == InsightDirection.Up:
+                    direction = InsightDirection.Up
+                elif currentState == InsightDirection.Down:
+                    direction = InsightDirection.Down
+                
+                if direction != InsightDirection.Flat:
+                    insight = Insight.Price(symbolData.symbol, timedelta(minutes=2), direction)
+                    algorithm.Debug(f"Generated insight: {insight}")
+                    insights.append(insight)
+
+            self.previousState = currentState
 
         return insights
+
+            # algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.wt.current_hlc3) + ","  + str(symbolData.wt.Value) + ","  + str(symbolData.wt.esa.Current.Value)+ ","  + str(symbolData.wt.d.Current.Value) + ","  + str(symbolData.ema.Current.Value))
+            # algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.wt.current_hlc3) + "," +str(symbolData.gma.Value) + "," + str(symbolData.alma.Value))
+            # algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.current_close) + "," + str(symbolData.wt.current_hlc3) + "," +str(symbolData.alma.current_prctdiff) + "," +str(symbolData.gma.Value) + ","  + str(symbolData.alma2.Current.Value) + "," + str(symbolData.alma.Value) + "," + str(symbolData.wt.Value))
+            # algorithm.Log("agap2," + str(algorithm.Time)+ "," + str(symbolData.current_close) + "," +str(symbolData.alma.Value) + "," +str(symbolData.gma.Value) + "," + str(symbolData.alma2.Current.Value) + "," + str(symbolData.alma.current_prctdiff))
+           
+            
+            
+
+            # if algorithm.Portfolio[symbolData.symbol].IsLong:
+            #     algorithm.Debug(f"Pos in SPY: long")
+            # if algorithm.Portfolio[symbolData.symbol].IsShort:
+            #     algorithm.Debug(f"Pos in SPY: short")
+
+            # if symbolData.wt.Value < -70:
+            #     if symbolData.alma.Value >= symbolData.gma.Value:
+                    # if not algorithm.Portfolio[symbolData.symbol].IsLong:
+                        # insight = Insight.Price(symbolData.symbol, timedelta(days=1), InsightDirection.Up)
+                        # insights.append(insight)
+                        # algorithm.Debug(f"Generated insight: {insight}")
+
+            # algorithm.Debug(f"Invested in SPY: {algorithm.Portfolio[symbolData.symbol].Invested}")    
+
+            # elif symbolData.wt.Value > 70:
+            #     if symbolData.alma.Value < symbolData.gma.Value:
+            #         if not algorithm.Portfolio[symbolData.symbol].Invested: # and not algorithm.Portfolio[symbolData.symbol].IsShort:
+            #             insight = Insight.Price(symbolData.symbol, timedelta(minutes=360),InsightDirection.Down)
+            #             insights.append(insight)
+            #             algorithm.Debug(f"Generated insight: {insight}")
+            #             algorithm.Debug(f"Invested in SPY: {algorithm.Portfolio[symbolData.symbol].Invested}")
+            #             if algorithm.Portfolio[symbolData.symbol].IsLong:
+            #                 algorithm.Debug(f"Pos in SPY: long")
+            #             if algorithm.Portfolio[symbolData.symbol].IsShort:
+            #                 algorithm.Debug(f"Pos in SPY: short")
+        
+        # return insights
 
     # def RecordTest(self, algorithm):
             # Code snippet to check the file against TV file 
