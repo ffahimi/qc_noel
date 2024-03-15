@@ -10,8 +10,8 @@ from alpha import *
 class CustomIndicatorAlgorithm(QCAlgorithm):
 
     def Initialize(self):
-        self.SetStartDate(2024,3,5)
-        self.SetEndDate(2024,3,6)
+        self.SetStartDate(2024,3,13)
+        self.SetEndDate(2024,3,14)
         self.SetCash(100000)
 
         # self.SetTimeZone("Europe/London")
@@ -47,3 +47,4 @@ class CustomIndicatorAlgorithm(QCAlgorithm):
 
 
         
+

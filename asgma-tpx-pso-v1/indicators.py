@@ -1,7 +1,7 @@
 from AlgorithmImports import *
 from collections import deque
 from QuantConnect.Indicators import *
-from symbol_data import *
+from symbols import *
 import math, numpy as np
 import pandas
 
@@ -133,10 +133,15 @@ class RedKTPX(PythonIndicator):
     def __init__(self, algorithm):
 
         self.algorithm = algorithm
+        # length  = input.int(title='Avg Length',         defval=7, minval=1)
         self.length = 7
+        # smooth  = input.int(title='Smoothing',          defval=3, minval=1)
         self.smooth = 3
+        # clevel  = input.int(title='Control Level',      defval=30, minval=5, maxval=100)
         self.clevel = 30
+        # pre_s   = input.bool(title='Pre-smoothing?',    defval=false,       inline='pre-smoothing')
         self.pre_s = False
+        # pre_sv  = input.int(title='',                   defval=3, minval=1, inline='pre-smoothing')
         self.pre_sv = 3
         self.high = deque(maxlen=(2))
         self.low = deque(maxlen=(2))
@@ -148,48 +153,55 @@ class RedKTPX(PythonIndicator):
         self.avgbears = 0
         self.avgbulls = 0
         self.net = 0
-        self.bulls = 0
 
     def Update(self, time_index, high, low, close) -> bool:
 
+        # create arrays for high and low series
         self.high.append(high)
         self.low.append(low)
-        high_2_arr = np.array(self.high)
-        low_2_arr = np.array(self.low)
+        higharr = np.array(self.high)
+        lowarr = np.array(self.low)
 
-        if len(high_2_arr) == 2 and len(low_2_arr) == 2:
+        if len(higharr) == 2 and len(lowarr) == 2:
 
-            R = np.max(np.array(self.high)) - np.min(np.array(self.low))   
+            # //R is the 2-bar range used as "baseline" or denominator 
+            # R           = ta.highest(2) - ta.lowest(2)
+            R = np.max(np.array(self.high)) - np.min(np.array(self.low))
             
             # TODO: Check  
-            hiup = 0 if high_2_arr[1]-high_2_arr[0] < 0 else high_2_arr[1]-high_2_arr[0]
-            loup = 0 if low_2_arr[1]-low_2_arr[0] < 0 else low_2_arr[1]-low_2_arr[0]
+            # // Bull pressure is represented by how far they can pull the high and the low of previous bar up relative to the 2-bar range
+            # hiup        = math.max(ta.change(high), 0)
+            hiup = 0 if higharr[1]-higharr[0] < 0 else higharr[1]-higharr[0]
+            # loup        = math.max(ta.change(low), 0)
+            loup = 0 if lowarr[1]-lowarr[0] < 0 else lowarr[1]-lowarr[0]
+            # bulls       = math.min((hiup + loup) / R, 1) * 100  //prevent big gaps causing a % over 100%
+            bulls = min((hiup + loup)/R, 1) *100
+            bulls = 0 if math.isnan(bulls) else bulls # nz
             
-            self.bulls = min((hiup + loup)/R, 1) *100
-
-            # if not nan then update with the value otherwise update with 0
-            if not math.isnan(self.bulls):
-                self.avgbulllma.Update(time_index, self.bulls)
-            else:
-                self.avgbulllma.Update(time_index, 0)
+            # avgbull     = ta.wma(nz(bulls), length)
+            self.avgbulllma.Update(time_index, bulls)
             
-            
+            # avgbulls    = pre_s ? ta.wma(avgbull, pre_sv) : avgbull
             if self.avgbulllma.IsReady:
                 self.avgbullslma.Update(time_index, self.avgbulllma.Current.Value)
-
             if self.avgbullslma.IsReady and self.avgbulllma.IsReady:
                 if self.pre_s:
                     self.avgbulls = self.avgbullslma.Current.value
                 else:
                     self.avgbulls = self.avgbulllma.Current.Value
-        
-            hidn = 0 if high_2_arr[1] - high_2_arr[0] > 0 else high_2_arr[1] - high_2_arr[0]
-            lodn = 0 if low_2_arr[1] - low_2_arr[0] > 0 else low_2_arr[1] - low_2_arr[0]
+
+            # hidn        = math.min(ta.change(high), 0)
+            hidn = 0 if higharr[1] - higharr[0] > 0 else higharr[1] - higharr[0]
+            # lodn        = math.min(ta.change(low), 0)
+            lodn = 0 if lowarr[1] - lowarr[0] > 0 else lowarr[1] - lowarr[0]
+            # bears       = math.max((hidn + lodn) / R, -1) * -100  //convert to positive value
             bears = max((hidn + lodn)/R , -1) * 100
+            bears = 0 if math.isnan(bears) else bears # nz
             
-            if not math.isnan(bears):
-                self.avgbearlma.Update(time_index, np.abs(bears))
+            # avgbear     = ta.wma(nz(bears), length)
+            self.avgbearlma.Update(time_index, bears)
             
+            # avgbears    = pre_s ? ta.wma(avgbear, pre_sv) : avgbear
             if self.avgbearlma.IsReady:
                 self.avgbearslma.Update(time_index, self.avgbearlma.Current.Value)
 
@@ -200,7 +212,9 @@ class RedKTPX(PythonIndicator):
                     self.avgbears = self.avgbearlma.Current.Value
 
             if self.avgbearslma.IsReady and self.avgbearlma.IsReady and self.avgbullslma.IsReady and self.avgbulllma.IsReady:
+                # net         = avgbulls - avgbears
                 self.net = self.avgbulls - self.avgbears
+                # TPX         = ta.wma(net, smooth)  // final smoothing
                 self.tpx.Update(time_index, self.net)
 
             return self.tpx.IsReady
@@ -211,14 +225,22 @@ class PSO(PythonIndicator):
     # The alma indicator with percentage change of close as the input
     def __init__(self, algorithm):
         self.algorithm = algorithm
+        # inpPeriod       = input(defval=32, title="Stochastic period", minval=1, type=input.integer)
         self.period =  32
+        # inpSmoothPeriod = input(defval=5,  title="Smoothing period", minval=1, type=input.integer)
         self.smooth_period = 5
+        # inpLevel1       = input(defval=0.9,title="Level 1", minval=0, type=input.float,step=0.01)
         self.level1 = 0.9
+        # inpLevel2       = input(defval=0.2,title="Level 1", minval=0, type=input.float,step=0.01)
         self.level2 = 0.2
+        # ema0 = 0.0
         self.ema0_current = 0.0
+        # ema1 = 0.0
         self.ema1_current = 0.0
         self.val = 0.0
+        # minLevel = 0.0
         self.min_level = 0.0
+        # maxLevel = 0.0
         self.max_level = 0.0
         
         self.high = deque(maxlen=(self.period))
@@ -237,18 +259,40 @@ class PSO(PythonIndicator):
         high32_arr = np.array(self.high)
         low32_arr = np.array(self.low)
 
+        self.algorithm.Log(str(high32_arr))
+        # if bar_index > inpPeriod
         if (len(high32_arr) == self.period) and (len(low32_arr) == self.period):
+            # alpha    = 2.0/(1.0+inpSmoothPeriod)
             alpha = 2.0/(1 + self.smooth_period)
+            # minLevel := min(inpLevel1,inpLevel2)
             self.min_level = min(self.level1, self.level2)
+            # maxLevel := max(inpLevel1,inpLevel2)
             self.max_level = max(self.level1, self.level2)
+            # mini   = lowest(low,inpPeriod)
             mini = np.min(low32_arr)
+            # maxi   = highest(high,inpPeriod)
             maxi = np.max(high32_arr)
+            # sto   = 10.0*((close-mini)/(maxi-mini)-0.5)
             sto = 10.0*((close - mini)/(maxi - mini)-0.5)
             
-            self.ema0_current = self.ema0_current + alpha*(sto - self.ema0_current)
-            self.ema1_current = self.ema1_current + alpha*(self.ema0_current - self.ema1_current)
-      
-            iexp = math.exp(self.ema1_current)
-            self.val = (iexp - 1.0)/(iexp + 1.0)
+            ema0_arr = np.array(self.ema0)
+            ema1_arr = np.array(self.ema1)
+
+            self.algorithm.Log(str(ema0_arr) + "...." + str(ema1_arr)) 
+
+            # before pushing the current value for ema0
+            if len(ema0_arr) >= 1 and len(ema1_arr) >= 1:
+                # ema0 := ema0[1]+alpha*(sto-ema0[1])
+                # ema1 := ema1[1]+alpha*(ema0-ema1[1])
+                self.ema0_current = self.ema0_current + alpha*(sto - self.ema0_current)
+                self.ema0.append(self.ema0_current)
+                # CHECK: is ema0[1] and ema1[0] actually mean their previous value 
+                self.ema1_current = ema1_arr[0] + alpha*(self.ema0_current - self.ema1_current)
+                self.ema1.append(self.ema1_current)
+                # CHECK: is this supposed to be the exponential of the last value 
+                # iexp = exp(ema1)
+                iexp = math.exp(self.ema1_curent)
+                # val  := (iexp-1.0)/(iexp+1.0)
+                self.val = (iexp - 1.0)/(iexp + 1.0)
 
         return 1
