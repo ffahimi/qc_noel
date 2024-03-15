@@ -18,7 +18,7 @@ class MyAlphaModel(AlphaModel):
             # algorithm.Log(f"------------------")
             # algorithm.Log(f"Checking conditions for symbol: {symbol} {symbol.Value}")
             # algorithm.Log(f"Invested={algorithm.Portfolio[symbol].Invested}, Quantity={algorithm.Portfolio[symbol].Quantity}")
-            algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.current_close) + "," + str(symbolData.wt.current_hlc3) + "," +str(symbolData.pso.val) + "," +str(symbolData.tpx.avgbulllma) + "," +str(symbolData.tpx.bulls) + "," +str(symbolData.tpx.net) + "," +str(symbolData.tpx.avgbearlma))
+            algorithm.Log("agap2," + str(symbolData.current_time)+ "," + str(symbolData.current_close) + "," + str(symbolData.wt.current_hlc3) + "," +str(symbolData.pso.mini)  + "," +str(symbolData.pso.maxi) + "," +str(symbolData.pso.val) + "," +str(symbolData.tpx.avgbulllma) + "," +str(symbolData.tpx.bulls) + "," +str(symbolData.tpx.avgbearlma) + "," +str(symbolData.tpx.net) + "," +str(symbolData.tpx.tpx))
             
             newDirection = None
             if symbolData.wt.Value < -70 and symbolData.alma.Value >= symbolData.gma.Value:

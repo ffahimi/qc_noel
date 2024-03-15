@@ -32,6 +32,7 @@ class CustomIndicatorAlgorithm(QCAlgorithm):
         self.SetUniverseSelection(ManualUniverseSelectionModel(symbols) )
         self.AddAlpha(MyAlphaModel())
         self.UniverseSettings.Resolution = Resolution.Minute
+        self.UniverseSettings.DataNormalizationMode = DataNormalizationMode.Raw
         self.SetPortfolioConstruction(InsightWeightingPortfolioConstructionModel(self.RebalanceFunction, PortfolioBias.LongShort))
         # self.SetPortfolioConstruction(EqualWeightingPortfolioConstructionModel(lambda time: None, PortfolioBias.LongShort))
         self.SetExecution(ImmediateExecutionModel())

@@ -154,14 +154,18 @@ class RedKTPX(PythonIndicator):
 
         self.high.append(high)
         self.low.append(low)
+        
         high_2_arr = np.array(self.high)
         low_2_arr = np.array(self.low)
 
         if len(high_2_arr) == 2 and len(low_2_arr) == 2:
 
-            R = np.max(np.array(self.high)) - np.min(np.array(self.low))   
+            R = np.max(high_2_arr) - np.min(low_2_arr)   
             
             # TODO: Check  
+            # hiup = 0 if high_2_arr[1]-high_2_arr[0] < 0 else high_2_arr[1]-high_2_arr[0]
+            # loup = 0 if low_2_arr[1]-low_2_arr[0] < 0 else low_2_arr[1]-low_2_arr[0]
+            
             hiup = 0 if high_2_arr[1]-high_2_arr[0] < 0 else high_2_arr[1]-high_2_arr[0]
             loup = 0 if low_2_arr[1]-low_2_arr[0] < 0 else low_2_arr[1]-low_2_arr[0]
             
@@ -185,6 +189,7 @@ class RedKTPX(PythonIndicator):
         
             hidn = 0 if high_2_arr[1] - high_2_arr[0] > 0 else high_2_arr[1] - high_2_arr[0]
             lodn = 0 if low_2_arr[1] - low_2_arr[0] > 0 else low_2_arr[1] - low_2_arr[0]
+            
             bears = max((hidn + lodn)/R , -1) * 100
             
             if not math.isnan(bears):
@@ -228,6 +233,9 @@ class PSO(PythonIndicator):
 
         self.val = 0
 
+        self.mini = 0
+        self.maxi = 0
+
     def Update(self, time_index, high, low, close) -> bool:
 
         
@@ -241,9 +249,9 @@ class PSO(PythonIndicator):
             alpha = 2.0/(1 + self.smooth_period)
             self.min_level = min(self.level1, self.level2)
             self.max_level = max(self.level1, self.level2)
-            mini = np.min(low32_arr)
-            maxi = np.max(high32_arr)
-            sto = 10.0*((close - mini)/(maxi - mini)-0.5)
+            self.mini = np.min(low32_arr)
+            self.maxi = np.max(high32_arr)
+            sto = 10.0*((close - self.mini)/(self.maxi - self.mini)-0.5)
             
             self.ema0_current = self.ema0_current + alpha*(sto - self.ema0_current)
             self.ema1_current = self.ema1_current + alpha*(self.ema0_current - self.ema1_current)
