@@ -1,0 +1,49 @@
+{
+    "organizations": [
+        {
+            "id": "a9b169fe202bd1547520f176c86bc774",
+            "name": "Farshad Fahimi",
+            "type": "Free",
+            "ownerName": "You",
+            "members": 1,
+            "selected": false,
+            "skylightSync": 1,
+            "preferred": false,
+            "profileImage": "https://cdn.quantconnect.com/i/tu/organization-default-icon.png"
+        },
+        {
+            "id": "024ff85a3b2118cef7f78fdc417eeab6",
+            "name": "Mike Beckhusen",
+            "type": "Team",
+            "ownerName": "Mike Beckhusen",
+            "members": 2,
+            "selected": false,
+            "skylightSync": 1,
+            "preferred": true,
+            "profileImage": "https://cdn.quantconnect.com/i/tu/organization-default-icon.png"
+        },
+        {
+            "id": "ce73f0e7f275fa1918e892a4de744241",
+            "name": "Bezan",
+            "type": "Team",
+            "ownerName": "Bezan",
+            "members": 2,
+            "selected": false,
+            "skylightSync": 1,
+            "preferred": false,
+            "profileImage": "https://cdn.quantconnect.com/i/tu/organization-default-icon.png"
+        },
+        {
+            "id": "f2b7b8ebe45b719166b8a0cb08eb32f6",
+            "name": "Noel Jackson",
+            "type": "Trading Firm",
+            "ownerName": "Noel Jackson",
+            "members": 2,
+            "selected": false,
+            "skylightSync": 1,
+            "preferred": false,
+            "profileImage": "https://cdn.quantconnect.com/i/tu/organization-default-icon.png"
+        }
+    ],
+    "success": true
+}

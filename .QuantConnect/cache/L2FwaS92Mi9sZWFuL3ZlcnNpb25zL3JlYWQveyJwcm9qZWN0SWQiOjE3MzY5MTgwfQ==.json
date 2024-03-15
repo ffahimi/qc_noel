@@ -1,0 +1,95 @@
+{
+    "versions": [
+        {
+            "id": 16302,
+            "created": "2024-03-14 19:22:26",
+            "description": "Minor fix for universe history (#7852)- Do not cache universe collection data. Adding unit test",
+            "leanHash": "a8280e1452466f5db90a897efa6f0d84904002ba",
+            "leanCloudHash": "efde57b48d32362f5d45a3cc7ccdb5530ff38f20",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        },
+        {
+            "id": 16299,
+            "created": "2024-03-13 19:52:25",
+            "description": "Adds Rebate and Fee Rates to Shortable Provider (#7840)* Adds Rebate and Fee Rates to Shortable ProviderIf the provider does have this information, the rates are zero.<br/>* Adds Helper Methods to QCAlgorithm- Improve summaries.<br/>- Express values as rates instead of percentages.<br/>- Adds headers to files to emulate real data* Clarify the Data Format* Removes Helper Methods from QCAlgorithm* Removes `Shortable` and `ShortableQuantity` from ExampleAlgorithms should prefer getting the information from the `Security.ShortableProvider`.",
+            "leanHash": "44c7dbd698e0570e916698c3127fd5143edf1b8e",
+            "leanCloudHash": "382c841109c5116215bb97ecca432dcb6c17a8d5",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        },
+        {
+            "id": 16298,
+            "created": "2024-03-13 16:12:22",
+            "description": "Fix live trading MHDB update (#7848)* Add schedule manager unit tests* Add schedule manager unit tests* Fix overriding security exchange hours* Minor comments changes* Minor change* Add SecurityExchangeHours.Update method to set without changing the reference* Minor change",
+            "leanHash": "b89d7d65b2b8b839f24ab1f75dc4c4aac899f9a7",
+            "leanCloudHash": "382c841109c5116215bb97ecca432dcb6c17a8d5",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        },
+        {
+            "id": 16297,
+            "created": "2024-03-13 14:23:19",
+            "description": "Backwards compatibility research universe history (#7849)- Add backwards compatibility for research universe history api, adding  unit tests",
+            "leanHash": "516befe0b52a170c973187aa99a79315e611e227",
+            "leanCloudHash": "382c841109c5116215bb97ecca432dcb6c17a8d5",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        },
+        {
+            "id": 16296,
+            "created": "2024-03-12 22:56:04",
+            "description": "Upgrades to backend QuantConnect operations",
+            "leanHash": "17ca8a743fc28310b8143054d5f04c432a8fd547",
+            "leanCloudHash": "382c841109c5116215bb97ecca432dcb6c17a8d5",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        },
+        {
+            "id": 16294,
+            "created": "2024-03-12 18:46:51",
+            "description": "Upgrades to backend QuantConnect operations",
+            "leanHash": "17ca8a743fc28310b8143054d5f04c432a8fd547",
+            "leanCloudHash": "e8af6279788f81cc231332134dfdcca8984ecafe",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        },
+        {
+            "id": 16293,
+            "created": "2024-03-12 16:42:35",
+            "description": "Refactor universe historical data source (#7837)* Refactor universe historical data source- Add new universe history API methods- Refactor QuantBook UniverseHistory to use the universe selection  itself instead of a given func- Refactor and rename fundamental types- Refactor AddUniverse API to handle universe collection data which  holds another type internally, like fundamental* Fix minor bug causing ApiDataProvider not to serve Bitfinex universe data* Further improvements to add universe API* Handle no selection function",
+            "leanHash": "17ca8a743fc28310b8143054d5f04c432a8fd547",
+            "leanCloudHash": "30f74f127e3fa1f269381216f48e409fdff3a1e3",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        },
+        {
+            "id": 16291,
+            "created": "2024-03-11 22:46:19",
+            "description": "Helper: Method for Retrieving Historical Ticker Symbols (#7826)* feat: helper to return old name of symbolsfeat: testrefactor: test a little bit neat* feat: SplitHistoryRequest() with different mapped symbolfeat: testrefactor: RetrieveSymbolHistoricalDefinitions* refactor: split historyRequest by historical symbol namerefactor: change location of extensionrefactor: change location of test extension* revert: extra changes* fix: validation on RequiresMapping in SplitHistoryRequestfeat: add Future Symbol tests* move: extension method to another file* fix: wrong extension call param position* fix: wrong extension call param position in test* refactor: IEnumerable foreach to more simple formfeat: add TickerDateRange struct instead of Tuplefix: test* refactor: map extension alway returns empty result* refactor: SplitHistory extension returns original HistoryRequest* feature: new extension for RequiresMapping except Futures* fix: validation of symbol map file to contains something* refactor: extension test cases* feat: assert of right ticker in tests* fix: split historical request with using Local Time instead of UTCfix: test description* feat: test helper IEnumerable of TimeZones* test: validate right EndDate with different TimeZones* remove: validation of end of datetest: several new test cases* feat: additional test with specific dateTime* remove: extra Extension method validation on future and mapping",
+            "leanHash": "a98a50237b491de3ef507aab2f6db0b9ed939090",
+            "leanCloudHash": "2c3419232c59aced18c4de00a6766da20beb3fca",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        },
+        {
+            "id": 16290,
+            "created": "2024-03-06 17:58:52",
+            "description": "Update readme.md",
+            "leanHash": "bb3931d9115fec9fe1b964032eea6c8b17bac625",
+            "leanCloudHash": "2c3419232c59aced18c4de00a6766da20beb3fca",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        }
+    ],
+    "success": true
+}

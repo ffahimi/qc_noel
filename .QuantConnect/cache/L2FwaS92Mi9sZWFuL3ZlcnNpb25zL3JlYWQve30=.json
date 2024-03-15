@@ -1,0 +1,15 @@
+{
+    "versions": [
+        {
+            "id": 16302,
+            "created": "2024-03-14 19:22:26",
+            "description": "Minor fix for universe history (#7852)- Do not cache universe collection data. Adding unit test",
+            "leanHash": "a8280e1452466f5db90a897efa6f0d84904002ba",
+            "leanCloudHash": "efde57b48d32362f5d45a3cc7ccdb5530ff38f20",
+            "name": "master",
+            "ref": "refs/heads/master",
+            "public": 1
+        }
+    ],
+    "success": true
+}
